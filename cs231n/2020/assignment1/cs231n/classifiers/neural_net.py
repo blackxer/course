@@ -80,8 +80,11 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
-
+        h1 = X.dot(W1) + b1.reshape(1, -1) # fc
+        h1 = np.maximum(0, h1) # relue
+        h2 = h1.dot(W2) + b2.reshape(1, -1)
+        scores = h2
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
@@ -98,7 +101,12 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        row_max = np.max(h2, axis=1).reshape(-1, 1)
+        h2 = h2 - row_max
+        h2 = np.exp(h2)
+        row_sum = np.sum(h2, axis=1).reshape(-1, 1)
+        scores = h2 / row_sum
+        loss = np.sum(-np.log(scores[np.arange(N), y])) / N + 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,8 +119,21 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
-
+        scores[np.arange(N), y] -= 1
+        grads_W2 = h1.T.dot(scores) / N + reg * W2
+        grads_b2 = np.sum(scores, axis=0) / N
+        
+        grads_h1 = scores.dot(W2.T)
+        grads_h1[h1<=0] = 0 # N*H
+        grads_W1 = X.T.dot(grads_h1) / N + reg * W1 # D*H
+        grads_b1 = np.sum(grads_h1, axis=0) / N
+        
+        grads["W1"] = grads_W1
+        grads["b1"] = grads_b1
+        grads["W2"] = grads_W2
+        grads["b2"] = grads_b2
+        
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return loss, grads
@@ -156,7 +177,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            idx = np.random.choice(num_train, batch_size, replace=True)
+            X_batch = X[idx]
+            y_batch = y[idx]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -172,7 +195,10 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            self.params["W2"] -= learning_rate * grads["W2"]
+            self.params["b2"] -= learning_rate * grads["b2"]
+            self.params["W1"] -= learning_rate * grads["W1"]
+            self.params["b1"] -= learning_rate * grads["b1"]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -218,7 +244,8 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        y_pred = self.loss(X)
+        y_pred = np.argmax(y_pred, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
