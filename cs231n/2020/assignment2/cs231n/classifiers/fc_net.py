@@ -213,6 +213,9 @@ class FullyConnectedNet(object):
         for H_dim in hidden_dims:
             self.params['W' + str(i)] = np.random.normal(0, weight_scale, (hs_dim, H_dim))
             self.params['b' + str(i)] = np.zeros(H_dim)
+            if "batchnorm" == normalization:
+                self.params['gamma' + str(i)] = np.ones(H_dim)
+                self.params['beta' + str(i)] = np.zeros(H_dim)
             hs_dim = H_dim
             i += 1
         self.params['W' + str(i)] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
@@ -278,13 +281,22 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         a_cache = {}
+        bn_cache = {}
         z_cache = {}
         a = X
         for i in range(1, self.num_layers):
             z, cache1 = affine_forward(a, self.params["W" + str(i)], self.params["b" + str(i)])
-            a, cache2 = relu_forward(z)
-            z_cache[i] = cache1
-            a_cache[i] = cache2
+            if self.normalization == "batchnorm":
+                bn_z, bn_cache1 = batchnorm_forward(z, self.params["gamma" + str(i)], self.params["beta" + str(i)], self.bn_params[i-1])
+                a, cache2 = relu_forward(bn_z)
+                z_cache[i] = cache1
+                bn_cache[i] = bn_cache1
+                a_cache[i] = cache2
+            else:
+                a, cache2 = relu_forward(z)
+                z_cache[i] = cache1
+                a_cache[i] = cache2
+                
         scores, c = affine_forward(a, self.params["W" + str(self.num_layers)], self.params["b" + str(self.num_layers)])
         z_cache[self.num_layers] = c
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -316,6 +328,8 @@ class FullyConnectedNet(object):
         dout, grads["W" + str(self.num_layers)], grads["b" + str(self.num_layers)] = affine_backward(dout, z_cache[self.num_layers])
         for i in range(self.num_layers-1, 0 , -1):
             dout = relu_backward(dout, a_cache[i])
+            if self.normalization == "batchnorm":
+                dout, grads["gamma" + str(i)], grads["beta" + str(i)] = batchnorm_backward(dout, bn_cache[i]) 
             dout, grads["W" + str(i)], grads["b" + str(i)] = affine_backward(dout, z_cache[i])
         
         for i in range(1, self.num_layers+1):
