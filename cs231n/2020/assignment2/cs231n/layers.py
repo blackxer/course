@@ -358,7 +358,12 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    sample_mean = np.mean(x, axis=1)
+    sample_var = np.var(x, axis=1)
+
+    out = (x.T - sample_mean) / np.sqrt(sample_var + eps)
+    out = out.T * gamma + beta
+    cache = (x, gamma, beta, sample_var + eps, sample_mean)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -393,7 +398,18 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, gamma, beta, sample_var, sample_mean = cache
+    dx = np.sum((x - sample_mean.reshape(-1,1)) * dout * gamma, axis=1).reshape(-1,1) * (x - sample_mean.reshape(-1,1)) * -1 / (x.shape[1] * np.power(sample_var, 3/2).reshape(-1,1)) 
+    dx -= (np.sum(dout * gamma, axis=1)/ (x.shape[1] * np.sqrt(sample_var))).reshape(-1,1)
+    dx += (dout * gamma) / np.sqrt(sample_var).reshape(-1,1)
+    x = x.T
+    dout = dout.T
+#     dx = np.sum((x - sample_mean) * dout, axis=0) * (x - sample_mean) * -1 / (x.shape[0] * np.power(sample_var, 3/2)) 
+#     dx -= np.sum(dout, axis=0)/ (x.shape[0] * np.sqrt(sample_var))
+#     dx += dout / np.sqrt(sample_var)
+#     dx = dx.T * gamma
+    dgamma = np.sum(dout * (x - sample_mean) / np.sqrt(sample_var), axis=1)
+    dbeta = np.sum(dout, axis=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################

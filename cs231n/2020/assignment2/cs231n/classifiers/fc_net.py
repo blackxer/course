@@ -216,6 +216,9 @@ class FullyConnectedNet(object):
             if "batchnorm" == normalization:
                 self.params['gamma' + str(i)] = np.ones(H_dim)
                 self.params['beta' + str(i)] = np.zeros(H_dim)
+            if "layernorm" == normalization:
+                self.params['gamma' + str(i)] = np.ones(H_dim)
+                self.params['beta' + str(i)] = np.zeros(H_dim)
             hs_dim = H_dim
             i += 1
         self.params['W' + str(i)] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
@@ -292,6 +295,12 @@ class FullyConnectedNet(object):
                 z_cache[i] = cache1
                 bn_cache[i] = bn_cache1
                 a_cache[i] = cache2
+            elif self.normalization == "layernorm":
+                bn_z, bn_cache1 = layernorm_forward(z, self.params["gamma" + str(i)], self.params["beta" + str(i)], self.bn_params[i-1])
+                a, cache2 = relu_forward(bn_z)
+                z_cache[i] = cache1
+                bn_cache[i] = bn_cache1
+                a_cache[i] = cache2
             else:
                 a, cache2 = relu_forward(z)
                 z_cache[i] = cache1
@@ -330,6 +339,8 @@ class FullyConnectedNet(object):
             dout = relu_backward(dout, a_cache[i])
             if self.normalization == "batchnorm":
                 dout, grads["gamma" + str(i)], grads["beta" + str(i)] = batchnorm_backward(dout, bn_cache[i]) 
+            elif self.normalization == "layernorm":
+                dout, grads["gamma" + str(i)], grads["beta" + str(i)] = layernorm_backward(dout, bn_cache[i]) 
             dout, grads["W" + str(i)], grads["b" + str(i)] = affine_backward(dout, z_cache[i])
         
         for i in range(1, self.num_layers+1):
